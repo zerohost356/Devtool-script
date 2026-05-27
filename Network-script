@@ -1,0 +1,9 @@
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+  console.log("➡️ API Call:", args[0]);
+  const res = await originalFetch(...args);
+  res.clone().json().then(data => {
+    console.log("⬅️ Response:", data);
+  });
+  return res;
+};

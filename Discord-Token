@@ -1,0 +1,14 @@
+window.webpackChunkdiscord_app.push([
+  [Math.random()],
+  {},
+  (req) => {
+    for (const m in req.c) {
+      if (req.c.hasOwnProperty(m)) {
+        const moudle = req.c[m].exports;
+        if (moudle && moudle.default && moudle.default.getToken !== undefined) {
+          console.log("Discord Token của bạn là:", moudle.default.getToken());
+        }
+      }
+    }
+  },
+]);

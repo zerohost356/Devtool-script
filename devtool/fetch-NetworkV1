@@ -1,0 +1,6 @@
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+  console.log("FETCH:", args);
+  const res = await originalFetch(...args);
+  return res;
+};

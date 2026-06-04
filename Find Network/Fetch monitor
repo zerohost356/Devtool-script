@@ -1,0 +1,30 @@
+(() => {
+  const originalFetch = window.fetch;
+
+  window.fetch = async (...args) => {
+    const [url, options] = args;
+
+    console.group("[FETCH]");
+    console.log("Endpoint:", typeof url === "string" ? url : url.url);
+    console.log("Method:", options?.method || "GET");
+    console.log("Headers:", options?.headers);
+    console.log("Body:", options?.body);
+
+    try {
+      const response = await originalFetch(...args);
+
+      console.log("Status:", response.status);
+      console.log("Response URL:", response.url);
+
+      console.groupEnd();
+
+      return response;
+    } catch (err) {
+      console.error(err);
+      console.groupEnd();
+      throw err;
+    }
+  };
+
+  console.log("Fetch monitor enabled");
+})();

@@ -1,0 +1,4 @@
+[...document.scripts]
+  .map(s => s.src)
+  .filter(Boolean)
+  .forEach(src => console.log(src));

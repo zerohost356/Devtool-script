@@ -1,0 +1,269 @@
+(() => {
+  if (window.__fetchMonitorInstalled) {
+    // Nếu đã cài trước đó, xóa box cũ để tránh bị trùng lặp giao diện
+    const oldBox = document.getElementById("mobile-fetch-monitor");
+    if (oldBox) oldBox.remove();
+  }
+  window.__fetchMonitorInstalled = true;
+
+  const originalFetch = window.fetch;
+
+  // Tạo container chính
+  const box = document.createElement("div");
+  box.id = "mobile-fetch-monitor";
+  box.style.cssText = `
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    max-width: 460px;
+    margin: 0 auto;
+    max-height: 60vh;
+    overflow: hidden;
+    z-index: 999999999;
+    background: rgba(13, 15, 23, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    color: #f3f4f6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  `;
+
+  box.innerHTML = `
+    <div id="fm-header" style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-weight: 700;
+      font-size: 14px;
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      border-radius: 19px 19px 0 0;
+      user-select: none;
+      cursor: pointer;
+    ">
+      <span id="fm-title" style="display: flex; align-items: center; gap: 6px;">🚀 Fetch Monitor</span>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="fm-clear" style="
+          background: rgba(255,255,255,0.15);
+          border: none;
+          color: #fff;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        ">Clear</button>
+        <button id="fm-toggle" style="
+          background: rgba(0,0,0,0.2);
+          border: none;
+          color: #fff;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">➖</button>
+      </div>
+    </div>
+
+    <div id="fm-body" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+      <div id="fm-counter" style="
+        padding: 6px 16px;
+        font-size: 11px;
+        color: #9ca3af;
+        background: rgba(0, 0, 0, 0.25);
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+      ">
+        Requests: 0
+      </div>
+
+      <div id="fm-logs" style="
+        overflow-y: auto;
+        padding-bottom: 12px;
+        flex: 1;
+        overscroll-behavior: contain;
+      "></div>
+    </div>
+  `;
+
+  document.body.appendChild(box);
+
+  const logs = box.querySelector("#fm-logs");
+  const counter = box.querySelector("#fm-counter");
+  const fmBody = box.querySelector("#fm-body");
+  const fmHeader = box.querySelector("#fm-header");
+  const fmTitle = box.querySelector("#fm-title");
+  const toggleBtn = box.querySelector("#fm-toggle");
+  const clearBtn = box.querySelector("#fm-clear");
+
+  let isMinimized = false;
+  let count = 0;
+
+  // Hàm chuyển đổi Kích thước Lớn <-> Bong bóng Thu nhỏ (Tùy chỉnh siêu gọn)
+  function toggleMinimize() {
+    isMinimized = !isMinimized;
+    if (isMinimized) {
+      // Thu nhỏ thành bong bóng tròn 50x50 ở góc phải dưới
+      fmBody.style.display = "none";
+      clearBtn.style.display = "none";
+      toggleBtn.style.display = "none";
+      
+      fmTitle.innerHTML = `📩 <span style="background:#ef4444; color:white; border-radius:10px; padding:1px 6px; font-size:11px; margin-left:2px;">${count}</span>`;
+      
+      box.style.left = "auto"; 
+      box.style.right = "16px";
+      box.style.bottom = "16px";
+      box.style.width = "52px";
+      box.style.height = "52px";
+      box.style.maxHeight = "52px";
+      box.style.borderRadius = "50%";
+      box.style.boxShadow = "0 8px 24px rgba(79, 70, 229, 0.5)";
+      
+      fmHeader.style.padding = "0";
+      fmHeader.style.width = "100%";
+      fmHeader.style.height = "100%";
+      fmHeader.style.justifyContent = "center";
+      fmHeader.style.borderRadius = "50%";
+    } else {
+      // Khôi phục lại kích thước đầy đủ ban đầu
+      fmBody.style.display = "flex";
+      clearBtn.style.display = "block";
+      toggleBtn.style.display = "flex";
+      
+      fmTitle.innerHTML = `🚀 Fetch Monitor`;
+      
+      box.style.left = "16px";
+      box.style.right = "16px";
+      box.style.width = "auto";
+      box.style.height = "auto";
+      box.style.maxHeight = "60vh";
+      box.style.borderRadius = "20px";
+      box.style.boxShadow = "0 12px 40px rgba(0, 0, 0, 0.6)";
+      
+      fmHeader.style.padding = "14px 16px";
+      fmHeader.style.width = "auto";
+      fmHeader.style.height = "auto";
+      fmHeader.style.justifyContent = "space-between";
+      fmHeader.style.borderRadius = "19px 19px 0 0";
+    }
+  }
+
+  // Bấm vào nút thu nhỏ hoặc bấm trực tiếp vào bong bóng tròn để phóng to lại
+  toggleBtn.onclick = (e) => { e.stopPropagation(); toggleMinimize(); };
+  fmHeader.onclick = () => { if (isMinimized) toggleMinimize(); };
+
+  box.querySelector("#fm-clear").onclick = (e) => {
+    e.stopPropagation();
+    logs.innerHTML = "";
+    count = 0;
+    counter.textContent = "Requests: 0";
+  };
+
+  function addLog(data) {
+    count++;
+    counter.textContent = `Requests: ${count}`;
+    
+    // Nếu đang thu nhỏ thì cập nhật số đếm trên bong bóng luôn
+    if (isMinimized) {
+      fmTitle.innerHTML = `📩 <span style="background:#ef4444; color:white; border-radius:10px; padding:1px 6px; font-size:11px; margin-left:2px;">${count}</span>`;
+    }
+
+    const item = document.createElement("div");
+    item.style.cssText = `
+      padding: 12px;
+      margin: 10px 14px 0 14px;
+      border-radius: 14px;
+      background: #151926;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+
+    const isError = data.status === "ERROR" || (typeof data.status === 'number' && data.status >= 400);
+    const statusColor = isError ? "#f87171" : "#10b981";
+
+    item.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+        <div style="color: #38bdf8; font-weight: 600; word-break: break-all; flex: 1; font-size: 12.5px; line-height: 1.4;">
+          ${data.url}
+        </div>
+        <button style="border: none; cursor: pointer; background: #4f46e5; color: #fff; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; white-space: nowrap; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.4);">Copy</button>
+      </div>
+
+      <div style="margin-top: 6px; font-size: 10.5px; color: #6b7280; display: flex; justify-content: space-between;">
+        <span>🕒 ${data.time}</span>
+        <span style="background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius:4px;">Fetch</span>
+      </div>
+
+      <div style="margin-top: 8px; display: flex; gap: 14px; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px;">
+        <div><span style="color: #818cf8; font-weight: 500;">Method:</span> <span style="font-family:monospace; font-weight:600;">${data.method}</span></div>
+        <div><span style="color: #fbbf24; font-weight: 500;">Status:</span> <span style="color: ${statusColor}; font-weight:700;">${data.status}</span></div>
+      </div>
+
+      <details style="margin-top: 8px; background: rgba(0,0,0,0.15); border-radius: 8px; overflow:hidden;">
+        <summary style="cursor: pointer; color: #60a5fa; font-size: 11.5px; padding: 6px 10px; user-select: none;">
+          🌐 View Response Preview
+        </summary>
+        <pre style="white-space: pre-wrap; word-break: break-all; color: #cbd5e1; font-size: 11px; font-family: monospace; max-height: 160px; overflow-y: auto; background: #090b11; padding: 10px; margin: 0; border-top: 1px solid rgba(255,255,255,0.05); overscroll-behavior: contain;">${data.preview ? data.preview.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : "<i>(Empty Response)</i>"}</pre>
+      </details>
+    `;
+
+    item.querySelector("button").onclick = (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      const btn = item.querySelector("button");
+      btn.textContent = "Copied!";
+      btn.style.background = "#059669";
+      setTimeout(() => {
+        btn.textContent = "Copy";
+        btn.style.background = "#4f46e5";
+      }, 1200);
+    };
+
+    logs.prepend(item);
+  }
+
+  window.fetch = async (...args) => {
+    const [url, options = {}] = args;
+    try {
+      const response = await originalFetch(...args);
+      let preview = "";
+      try {
+        const clone = response.clone();
+        preview = await clone.text();
+        preview = preview.slice(0, 1500); 
+      } catch {}
+
+      addLog({
+        url: typeof url === "string" ? url : (url.url || String(url)),
+        method: options.method || "GET",
+        status: response.status,
+        time: new Date().toLocaleTimeString(),
+        preview
+      });
+      return response;
+    } catch (err) {
+      addLog({
+        url: typeof url === "string" ? url : (url.url || String(url)),
+        method: options.method || "GET",
+        status: "ERROR",
+        time: new Date().toLocaleTimeString(),
+        preview: err.message
+      });
+      throw err;
+    }
+  };
+
+  console.log("🚀 Mobile Fetch Monitor: Đã thêm tính năng Bong bóng thu nhỏ thông minh!");
+})();
